@@ -210,7 +210,7 @@ function keyGen(keyPath) {
 }
 
 function checkKeys(keyPath) {
-    const contents = fs.readdirSync("C:\\Users\\Liam\\.ssh\\")
+    const contents = fs.readdirSync(keyPath)
     
     if (contents.includes("id_rsa.pub") && contents.includes("id_rsa")) {
         return true
