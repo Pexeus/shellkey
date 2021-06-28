@@ -21,6 +21,8 @@
   },
   "homepage": "https://github.com/Pexeus/shellkey#readme",
   "dependencies": {
+    "boxen": "^5.0.1",
+    "chalk": "^4.1.1",
     "node-ssh": "^11.1.1",
     "password-prompt": "^1.1.2",
     "read": "^1.0.7",

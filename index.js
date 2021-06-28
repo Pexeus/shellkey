@@ -5,6 +5,8 @@ const os = require('os')
 const fs = require('fs')
 const cp = require('child_process')
 const {NodeSSH} = require('node-ssh')
+const boxen = require('boxen')
+const chalk = require("chalk");
 
 async function init() {
     const args = process.argv
@@ -33,7 +35,12 @@ async function init() {
     }
 
     const transmitted = await transmitKey(host, keyPath)
-    console.log(transmitted);
+    
+    if (transmitted) {
+        console.log(boxen(chalk.blue.bold(`Success!\nConnect via ${host}`), {padding: 1, borderStyle: "round", borderColor: "cyan"}));
+    }
+
+    process.exit()
 }
 
 function keyDir(ssh) {
@@ -159,10 +166,10 @@ async function sshConnect(address, user) {
     let password
     
     if (debug) {
-        password = "sml12345"
+        password = ""
     }
     else {
-        password = await askSecret("Password")
+        password = await askSecret(`Password for ${user}`)
     }
 
     return new Promise((resolve, reject) => {
@@ -172,11 +179,10 @@ async function sshConnect(address, user) {
             password: password
         })
         .then(() => {
-            console.log(`Connection established with ${address}`);
+            console.log(`> Connection established with ${address}`);
             resolve(ssh)
         }, err => {
             console.log(String(err));
-            resolve(false)
         })
     })
 }
@@ -190,10 +196,6 @@ function keyGen(keyPath) {
             '-N', "",
             '-f', keyPath + "/id_rsa",
         ])
-    
-        keygen.stdout.on("data", data => {
-            console.log(String(data));
-        })
     
         keygen.stderr.on("data", data => {
             console.log(String(data));
