@@ -4,6 +4,7 @@ const readline = require("readline");
 const os = require('os')
 const fs = require('fs')
 const cp = require('child_process')
+const path = require('path')
 const {NodeSSH} = require('node-ssh')
 const boxen = require('boxen')
 const chalk = require("chalk");
@@ -12,12 +13,15 @@ async function init() {
     const args = process.argv
     const host = args[2]
     const userInfo = os.userInfo()
-    const keyPath = `${userInfo.homedir}\\.ssh\\`
+    const isWindows = process.platform.includes("win")
+    const isLinux = process.platform === 'linux'
 
-    if (!process.platform.includes("win")) {
-        console.log("> Only working on Windows for now");
+    if (!isWindows && !isLinux) {
+        console.log("> Only working on Windows and Linux for now");
         return;
     }
+
+    const keyPath = path.join(userInfo.homedir, '.ssh')
 
     if (args.length != 3) {
         console.log("> Usage: shellkey <user@host>");
@@ -31,6 +35,9 @@ async function init() {
 
     if (!checkKeys(keyPath)) {
         console.log("> No keys found, generating keys...");
+        if (!fs.existsSync(keyPath)) {
+            fs.mkdirSync(keyPath, { recursive: true, mode: 0o700 })
+        }
         await keyGen(keyPath)
     }
 
@@ -93,7 +100,7 @@ function keyDir(ssh) {
 }
 
 function createAuthFile(ssh, dir) {
-    console.log("> Creatig remote auth file...");
+    console.log("> Creating remote auth file...");
 
     return new Promise(async resolve => {
         const fileCreated = await ssh.execCommand("touch authorized_keys", {cwd: dir}).then(result => {
@@ -135,7 +142,7 @@ async function transmitKey(host, keyPath) {
     return new Promise(async (resolve, reject) => {
         const user = host.split("@")[0]
         const address = host.split("@")[1]
-        const publicKey = fs.readFileSync(keyPath + "/id_rsa.pub", "utf-8")
+        const publicKey = fs.readFileSync(path.join(keyPath, "id_rsa.pub"), "utf-8")
 
         const ssh = await sshConnect(address, user)
         const remoteKey = await keyDir(ssh) + "/authorized_keys"
@@ -194,7 +201,7 @@ function keyGen(keyPath) {
             '-b', "2048",
             '-C', "",
             '-N', "",
-            '-f', keyPath + "/id_rsa",
+            '-f', path.join(keyPath, "id_rsa"),
         ])
     
         keygen.stderr.on("data", data => {
@@ -210,13 +217,22 @@ function keyGen(keyPath) {
 }
 
 function checkKeys(keyPath) {
-    const contents = fs.readdirSync(keyPath)
-    
-    if (contents.includes("id_rsa.pub") && contents.includes("id_rsa")) {
-        return true
-    }
+    try {
+        const contents = fs.readdirSync(keyPath)
 
-    return false
+        if (contents.includes("id_rsa.pub") && contents.includes("id_rsa")) {
+            return true
+        }
+
+        return false
+    }
+    catch (err) {
+        if (err.code === 'ENOENT') {
+            return false
+        }
+
+        throw err
+    }
 }
 
 function askSecret(question) {
